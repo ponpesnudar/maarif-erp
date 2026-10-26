@@ -1,0 +1,13 @@
+# Linux (systemd). Salin ke /etc/systemd/system/maarif.service, sesuaikan User dan WorkingDirectory, lalu:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now maarif
+[Unit]
+Description=Maarif ERP
+After=network.target
+[Service]
+User=maarif
+WorkingDirectory=/opt/maarif-erp
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administrator · Ma'arif ERP</title><script src="/vendor/vue.global.prod.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,sans-serif;background:#f0fdf4;color:#0f172a}#app{max-width:980px;margin:0 auto;padding:12px}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:6px}.bar a{color:#16a34a;text-decoration:none}h2{margin:10px 0 6px;font-size:18px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0}.tabs button.on{background:#16a34a;color:#fff;border-color:#16a34a}
+input,select,button,textarea{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid #cbd5e1;max-width:100%}input,select,textarea{width:100%;margin:3px 0}button{cursor:pointer;background:#fff}
+.g{background:#16a34a;color:#fff;border-color:#16a34a}.r{background:#dc2626;color:#fff;border-color:#dc2626}.box{background:#fff;border:1px solid #d1e7d8;border-radius:10px;padding:12px;margin:8px 0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>.f{flex:1;min-width:0}.sm{font-size:12px;color:#64748b}.chip{display:inline-block;background:#dcfce7;border-radius:99px;padding:1px 9px;font-size:12px;margin:2px 3px 2px 0}
+.chip.x{background:#fee2e2}.chip.w{background:#fef3c7}.info{background:#fff;border:1px solid #16a34a;border-radius:8px;padding:8px 12px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid #e2e8f0;padding:5px 6px;text-align:left;vertical-align:top}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.card{background:#fff;border:1px solid #d1e7d8;border-radius:10px;padding:10px}.card b{font-size:20px;display:block}
+.perm{display:flex;gap:6px;align-items:flex-start;margin:3px 0}.perm input{width:auto;margin-top:4px}.sens{color:#b45309}.two{display:grid;grid-template-columns:240px 1fr;gap:12px}@media(max-width:700px){.two{grid-template-columns:1fr}}.sel{border-color:#16a34a;background:#f0fdf4}</style></head><body>
+<div id="app"><div class="bar"><a href="/">← Portal</a><b>Administrator</b><span><span class="sm">{{nama}}</span> <button @click="keluar">Keluar</button></span></div>
+ <p class="info" v-if="info">{{info}}</p><div class="tabs"><button v-for="t in tabs" :key="t[0]" :class="{on:tab===t[0]}" @click="buka(t[0])">{{t[1]}}</button></div>
+
+ <section v-if="tab==='user'"><div class="row"><input class="f" v-model="cari" placeholder="Cari nama atau username" @input="tunda(muatUser)"><label class="sm"><input type="checkbox" v-model="aktifSaja" style="width:auto" @change="muatUser"> Aktif saja</label>
+   <button v-if="ada('administrator.user.kelola')" class="g" @click="formUser({})">Tambah pengguna</button></div>
+  <div class="box" v-if="fu"><b>{{fu.id?'Ubah pengguna':'Pengguna baru'}}</b><input v-if="!fu.id" v-model="fu.username" placeholder="Username"><input v-model="fu.nama" placeholder="Nama lengkap">
+   <div class="sm">Role:</div><label v-for="r in roles" :key="r.kode" class="sm" style="margin-right:12px;display:inline-block"><input type="checkbox" :value="r.kode" v-model="fu.roles" style="width:auto"> {{r.nama}}</label>
+   <div><label class="sm"><input type="checkbox" v-model="fu.aktif" style="width:auto"> Akun aktif</label></div><div class="row"><button class="g" @click="simpanUser">Simpan</button><button @click="fu=null">Batal</button></div></div>
+  <div class="box" v-if="temp"><b>Sandi sementara: {{temp.sandi}}</b> <span class="sm">untuk {{temp.user}}. Tampil sekali, sampaikan langsung. Pengguna wajib menggantinya saat login pertama.</span></div>
+  <div class="box" v-for="u in users" :key="u.id"><div class="row"><div class="f"><b>{{u.nama}}</b> <span class="sm">@{{u.username}}</span><div><span class="chip" v-for="r in u.roles" :key="r">{{r}}</span><span class="chip x" v-if="!u.aktif">Nonaktif</span><span class="chip w" v-if="u.wajibGanti">Wajib ganti sandi</span></div><div class="sm">Login terakhir: {{u.loginTerakhir?u.loginTerakhir.slice(0,16).replace('T',' '):'belum pernah'}}</div></div>
+   <button v-if="ada('administrator.user.kelola')" @click="formUser(u)">Ubah</button><button v-if="ada('administrator.user.reset')" @click="reset(u)">Reset sandi</button></div></div></section>
+
+ <section v-if="tab==='role'"><div class="two"><div><button class="g" style="width:100%" v-if="ada('administrator.role.kelola')" @click="roleBaru">Role baru</button>
+   <div class="box" v-for="r in roleList" :key="r.kode" :class="{sel:rd&&rd.role.kode===r.kode}" style="cursor:pointer" @click="pilihRole(r.kode)"><b>{{r.nama}}</b><div class="sm">{{r.kode}} · {{r.izin}} dari {{rTotal}} izin · {{r.pengguna}} pengguna</div></div></div>
+  <div v-if="rd" class="box"><div v-if="rd.baru"><input v-model="rd.role.kode" placeholder="Kode role (unik)"></div><input v-model="rd.role.nama" placeholder="Nama role"><textarea v-model="rd.role.keterangan" rows="2" placeholder="Keterangan"></textarea>
+   <p class="sm" v-if="rd.role.kode==='Admin'">Role Administrator Sistem memiliki semua izin dan tidak bisa diubah.</p>
+   <div v-for="g in grup" :key="g[0]"><h2>{{g[0]}} <span class="sm">{{g[1].filter(p=>rd.izin.includes(p.kode)).length}}/{{g[1].length}}</span></h2>
+    <label class="perm" v-for="p in g[1]" :key="p.kode"><input type="checkbox" :value="p.kode" v-model="rd.izin" :disabled="rd.role.kode==='Admin'||!ada('administrator.role.kelola')"><span><b>{{p.sumber}} · {{p.aksi}}</b> <span class="sens" v-if="p.sensitif" title="Izin sensitif">●</span><div class="sm">{{p.label}} <code>{{p.kode}}</code></div></span></label></div>
+   <div class="row" v-if="ada('administrator.role.kelola')"><button class="g" @click="simpanRole">Tinjau dan simpan</button><button class="r" v-if="!rd.baru&&!rd.role.bawaan" @click="hapusRole">Hapus role</button></div><p class="sm">● izin sensitif. Perubahan langsung berlaku untuk semua pengguna role ini tanpa login ulang.</p></div></div></section>
+
+ <section v-if="tab==='audit'"><div class="box"><div class="row"><select class="f" v-model="fa.aksi"><option value="">Semua aksi</option><option v-for="a in aksiList" :key="a">{{a}}</option></select><input class="f" v-model="fa.pelaku" placeholder="Pelaku"><input class="f" type="date" v-model="fa.dari"><input class="f" type="date" v-model="fa.sampai"><button class="g" @click="fa.offset=0;muatAudit()">Terapkan</button></div></div>
+  <div class="box" style="overflow-x:auto"><table><tr><th>Waktu</th><th>Pelaku</th><th>Aksi</th><th>Objek</th><th>Detail</th></tr><tr v-for="b in audit" :key="b.id"><td>{{b.waktu.slice(0,19).replace('T',' ')}}</td><td>{{b.pelaku}}</td><td><b>{{b.aksi}}</b></td><td>{{b.objek}}</td><td>{{b.detail}}</td></tr></table>
+   <div class="row" style="margin-top:8px"><button :disabled="fa.offset===0" @click="fa.offset-=50;muatAudit()">Sebelumnya</button><span class="sm">{{auditTotal}} catatan · halaman {{fa.offset/50+1}}</span><button :disabled="fa.offset+50>=auditTotal" @click="fa.offset+=50;muatAudit()">Berikutnya</button></div></div></section>
+
+ <section v-if="tab==='sehat'&&sh"><div class="row"><h2 class="f">Kesehatan sistem</h2><button @click="muatSehat">Periksa ulang</button><button v-if="ada('administrator.cadangan')" class="g" @click="cadang">Cadangkan sekarang</button></div>
+  <div class="cards"><div class="card"><span class="sm">Aktif sejak</span><b>{{lama(sh.uptimeDetik)}}</b></div><div class="card"><span class="sm">Waktu respons p95</span><b>{{sh.metrik.p95}} ms</b></div><div class="card"><span class="sm">Permintaan 24 jam</span><b>{{sh.metrik.jumlah}}</b></div><div class="card"><span class="sm">Galat server</span><b>{{sh.metrik.galat5xx}}</b></div>
+   <div class="card"><span class="sm">Basis data</span><b>{{sh.dbUkuranKB}} KB</b></div><div class="card"><span class="sm">Memori</span><b>{{sh.memoriMB}} MB</b></div><div class="card"><span class="sm">Sesi aktif</span><b>{{sh.sesiAktif}}</b></div><div class="card"><span class="sm">Disk bebas</span><b>{{sh.disk?sh.disk.bebasGB+' GB':'-'}}</b></div></div>
+  <div class="box"><b>Pemeriksaan</b><div v-for="(c,i) in sh.pemeriksaan" :key="i">{{c.s==='ok'?'✓':'⚠'}} {{c.t}}</div></div>
+  <div class="box"><b>Isi basis data</b><div class="sm"><span v-for="(n,t) in sh.hitung" :key="t" style="margin-right:14px">{{t}}: {{n}}</span></div></div>
+  <div class="box" v-if="sh.metrik.terlambat.length"><b>Fungsi paling lambat (p95)</b><div class="sm"><span v-for="x in sh.metrik.terlambat" :key="x.fn" style="margin-right:14px">{{x.fn}} {{x.p95}} ms ({{x.n}}x)</span></div></div></section>
+</div>
+<script>
+const {createApp,ref,reactive,computed}=Vue;let TK='';
+async function rpc(fn,...a){const r=await fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn,args:[TK,...a]})});const j=await r.json().catch(()=>({error:'Respons server tidak valid'}));if(!r.ok||j.error){if(/Sesi habis/.test(j.error||'')){sessionStorage.removeItem('maarif');location.href='/'}throw new Error(j.error||'HTTP '+r.status)}return j.result}
+createApp({setup(){
+ let sv=null;try{sv=JSON.parse(sessionStorage.getItem('maarif')||'null')}catch(e){}if(!sv){location.href='/'}else TK=sv.token;
+ const nama=ref(sv?sv.nama:''),izin=ref([]),tab=ref(''),info=ref(''),ada=k=>izin.value.includes(k);let _t;const ok=m=>{info.value=m;clearTimeout(_t);_t=setTimeout(()=>info.value='',4000)},err=e=>ok('⚠ '+(e.message||e));
+ const tabs=computed(()=>[ada('administrator.user.lihat')&&['user','Pengguna'],ada('administrator.role.lihat')&&['role','Role dan izin'],ada('administrator.audit.lihat')&&['audit','Jejak audit'],ada('administrator.kesehatan.lihat')&&['sehat','Kesehatan sistem']].filter(Boolean));
+ const cari=ref(''),aktifSaja=ref(false),users=ref([]),roles=ref([]),fu=ref(null),temp=ref(null);let timer;const tunda=f=>{clearTimeout(timer);timer=setTimeout(f,250)};
+ async function muatUser(){try{users.value=await rpc('admUsers',{cari:cari.value,aktifSaja:aktifSaja.value});if(ada('administrator.role.lihat')||true){roles.value=(await rpc('admRoles')).role}}catch(e){err(e)}}
+ function formUser(u){temp.value=null;fu.value={id:u.id||null,username:'',nama:u.nama||'',roles:[...(u.roles||[])],aktif:u.aktif===undefined?true:!!u.aktif}}
+ async function simpanUser(){try{const r=await rpc('admSimpanUser',{...fu.value});if(r.temp)temp.value={user:fu.value.username,sandi:r.temp};ok('Pengguna disimpan.');fu.value=null;muatUser()}catch(e){err(e)}}
+ async function reset(u){if(!confirm('Reset sandi '+u.username+'? Sandi lama tidak berlaku lagi.'))return;try{const r=await rpc('ujResetSandi',u.username);temp.value={user:u.username,sandi:r.temp};muatUser()}catch(e){err(e)}}
+ const roleList=ref([]),rTotal=ref(0),rd=ref(null);
+ async function muatRole(){try{const r=await rpc('admRoles');roleList.value=r.role;rTotal.value=r.total}catch(e){err(e)}}
+ async function pilihRole(k){try{const r=await rpc('admRole',k);rd.value={role:{...r.role},izin:r.izin,katalog:r.katalog,baru:false}}catch(e){err(e)}}
+ async function roleBaru(){try{const r=await rpc('admRole','Admin');rd.value={role:{kode:'',nama:'',keterangan:'',bawaan:0},izin:[],katalog:r.katalog,baru:true}}catch(e){err(e)}}
+ const grup=computed(()=>{if(!rd.value)return[];const m={};rd.value.katalog.forEach(p=>(m[p.modul]=m[p.modul]||[]).push(p));return Object.entries(m)});
+ async function simpanRole(){const sens=rd.value.katalog.filter(p=>p.sensitif&&rd.value.izin.includes(p.kode)).length;if(sens&&!confirm(sens+' izin sensitif aktif untuk role ini. Simpan?'))return;try{const r=await rpc('admSimpanRole',{kode:rd.value.role.kode,nama:rd.value.role.nama,keterangan:rd.value.role.keterangan,izin:rd.value.izin,baru:rd.value.baru});ok('Role disimpan (+'+r.tambah+' izin, -'+r.cabut+').');const k=rd.value.role.kode;await muatRole();pilihRole(k)}catch(e){err(e)}}
+ async function hapusRole(){if(!confirm('Hapus role '+rd.value.role.nama+'?'))return;try{await rpc('admHapusRole',rd.value.role.kode);rd.value=null;muatRole()}catch(e){err(e)}}
+ const fa=reactive({aksi:'',pelaku:'',dari:'',sampai:'',offset:0}),audit=ref([]),auditTotal=ref(0),aksiList=ref([]);
+ async function muatAudit(){try{const r=await rpc('admAudit',{...fa,limit:50});audit.value=r.baris;auditTotal.value=r.total;aksiList.value=r.aksi}catch(e){err(e)}}
+ const sh=ref(null);async function muatSehat(){try{sh.value=await rpc('admKesehatan')}catch(e){err(e)}}
+ const lama=s=>s<3600?Math.floor(s/60)+' mnt':s<86400?Math.floor(s/3600)+' jam':Math.floor(s/86400)+' hari';
+ async function cadang(){try{const r=await rpc('ujBackupSekarang');ok('Cadangan dibuat: '+r.nama);muatSehat()}catch(e){err(e)}}
+ function buka(t){tab.value=t;({user:muatUser,role:muatRole,audit:muatAudit,sehat:muatSehat})[t]()}
+ function keluar(){sessionStorage.removeItem('maarif');location.href='/'}
+ (async()=>{if(!sv)return;try{izin.value=(await rpc('sayaIzin')).izin;if(tabs.value.length)buka(tabs.value[0][0]);else ok('Anda tidak memiliki izin Administrator.')}catch(e){err(e)}})();
+ return{nama,tab,tabs,info,ada,cari,aktifSaja,users,roles,fu,temp,tunda,muatUser,formUser,simpanUser,reset,roleList,rTotal,rd,pilihRole,roleBaru,grup,simpanRole,hapusRole,muatRole,fa,audit,auditTotal,aksiList,muatAudit,sh,muatSehat,lama,cadang,buka,keluar}}}).mount('#app');
+</script></body></html>

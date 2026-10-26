@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ma'arif ERP · Portal</title><script src="/vendor/vue.global.prod.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:#f0fdf4;color:#0f172a}#app{max-width:880px;margin:0 auto;padding:16px}
+h1{margin:6px 0;font-size:24px}.card{background:#fff;border:1px solid #d1e7d8;border-radius:12px;padding:14px}input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #cbd5e1;width:100%;margin:4px 0}
+button{cursor:pointer;background:#fff}.g{background:#16a34a;color:#fff;border-color:#16a34a}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:12px}
+a.mod,.mod{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #d1e7d8;border-radius:12px;padding:14px}a.mod:hover{border-color:#16a34a}.mod.off{opacity:.5}.mod b{display:block;margin-bottom:4px}.sm{font-size:13px;color:#64748b}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}.top button{width:auto}.msg{color:#b91c1c;font-size:13px}.row{display:flex;gap:8px}.row button{flex:1}.g2{background:#16a34a;color:#fff}</style></head><body>
+<div id="app">
+ <div v-if="!tk" class="card" style="max-width:380px;margin:40px auto"><h1>Ma'arif ERP</h1><p class="sm">SIPP NU Darussalam</p>
+  <div class="row"><button :class="{g:!wali}" @click="wali=false">Guru / Pengurus</button><button :class="{g:wali}" @click="wali=true">Wali Santri</button></div>
+  <input v-model="u" :placeholder="wali?'NIS santri':'Username'" @keyup.enter="masuk"><input v-model="p" type="password" :placeholder="wali?'PIN':'Password'" @keyup.enter="masuk">
+  <button class="g" @click="masuk">Masuk</button><p class="msg">{{msg}}</p></div>
+ <template v-else>
+  <div class="top"><div><h1>Selamat datang, {{nama}}</h1><div class="sm">{{role}}</div></div><button @click="keluar">Keluar</button></div>
+  <div v-if="ganti" class="card" style="max-width:420px"><b>Ganti sandi dulu</b><p class="sm">Sandi awal harus diganti sebelum memakai modul.</p>
+   <input v-model="f.lama" type="password" placeholder="Sandi saat ini"><input v-model="f.baru" type="password" placeholder="Sandi baru (minimal 8 karakter)"><input v-model="f.ulang" type="password" placeholder="Ulangi sandi baru">
+   <button class="g" @click="gantiSandi">Simpan</button><p class="msg">{{msg}}</p></div>
+  <div v-else class="grid">
+   <a v-for="m in aktif" :key="m.n" class="mod" :href="m.href"><b>{{m.n}}</b><span class="sm">{{m.d}}</span><div style="margin-top:8px;color:#16a34a;font-weight:600">Buka →</div></a>
+   <div v-for="m in segera" :key="m.n" class="mod off"><b>{{m.n}}</b><span class="sm">{{m.d}}</span><div class="sm" style="margin-top:8px">Segera</div></div>
+  </div></template></div>
+<script>
+const {createApp,ref,computed}=Vue;
+async function rpc(fn,...a){const r=await fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn,args:a})});const j=await r.json().catch(()=>({error:'Respons server tidak valid'}));if(!r.ok||j.error)throw new Error(j.error||'HTTP '+r.status);return j.result}
+createApp({setup(){
+ const tk=ref(''),nama=ref(''),role=ref(''),izin=ref([]),wali=ref(false),u=ref(''),p=ref(''),msg=ref(''),ganti=ref(false),f=ref({lama:'',baru:'',ulang:''});
+ const ada=k=>izin.value.includes(k),adaAwalan=k=>izin.value.some(x=>x.startsWith(k));
+ const aktif=computed(()=>[ada('portal.wali')&&{n:'Portal Wali',d:'Nilai dan raport anak',href:'/ujian'},ada('ujian.akses')&&{n:'Ujian',d:'Daftar hadir, penilaian, verifikasi, raport, denah, kartu',href:'/ujian'},adaAwalan('kesantrian.')&&{n:'Kesantrian',d:'Data santri, pindah kelas, kualitas data',href:'/kesantrian'},adaAwalan('madrasah.')&&{n:'Madrasah',d:'Nilai harian, guru pengampu, data raport',href:'/madrasah'},adaAwalan('administrator.')&&{n:'Administrator',d:'Pengguna, role dan izin, jejak audit, kesehatan sistem',href:'/administrator'}].filter(Boolean));
+ const segera=computed(()=>role.value==='Wali'?[]:[{n:'Kurikulum dan Bank Soal',d:'Kurikulum kitab dari Majelis, bank soal'},{n:'Kehadiran',d:'Absensi santri dan pegawai, analitik'},{n:'Sekretariat',d:'Struktur kepengurusan, arsip, surat, pengumuman'},{n:'Penggajian',d:'Gaji guru, satpam, dan pegawai lainnya, slip gaji'},{n:'Laporan',d:'Seluruh laporan dalam satu pintu'}]);
+ async function muat(){try{const r=await rpc('sayaIzin',tk.value);izin.value=r.izin;nama.value=r.nama;role.value=r.role}catch(e){if(/harus mengganti/.test(e.message)){ganti.value=true}else{keluar()}}}
+ async function masuk(){msg.value='';try{const r=wali.value?await rpc('ujWaliLogin',u.value,p.value):await rpc('ujLogin',u.value,p.value);if(!r.success){msg.value=r.msg;return}
+   tk.value=r.token;nama.value=r.nama;role.value=r.role;p.value='';ganti.value=!!r.wajibGanti;sessionStorage.setItem('maarif',JSON.stringify({token:r.token,nama:r.nama,role:r.role}));if(!r.wajibGanti)await muat()}catch(e){msg.value=e.message}}
+ async function gantiSandi(){msg.value='';if(f.value.baru!==f.value.ulang){msg.value='Ulangi sandi baru dengan benar.';return}try{const r=await rpc('ujGantiSandi',tk.value,f.value.lama,f.value.baru);if(!r.success){msg.value=r.msg;return}ganti.value=false;f.value={lama:'',baru:'',ulang:''};await muat()}catch(e){msg.value=e.message}}
+ function keluar(){tk.value='';izin.value=[];ganti.value=false;sessionStorage.removeItem('maarif')}
+ try{const sv=JSON.parse(sessionStorage.getItem('maarif')||'null');if(sv){tk.value=sv.token;nama.value=sv.nama;role.value=sv.role;muat()}}catch(e){}
+ return{tk,nama,role,wali,u,p,msg,ganti,f,aktif,segera,masuk,gantiSandi,keluar}}}).mount('#app');
+</script></body></html>

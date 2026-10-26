@@ -1,0 +1,10 @@
+node_modules/
+data/
+.env
+*.db
+*.sqlite
+backup/
+backups/
+*.msi
+*.msix
+vs_BuildTools.exe

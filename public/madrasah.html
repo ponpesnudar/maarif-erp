@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Madrasah · Ma'arif ERP</title><script src="/vendor/vue.global.prod.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,sans-serif;background:#f0fdf4;color:#0f172a}#app{max-width:980px;margin:0 auto;padding:12px}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:6px}.bar a{color:#16a34a;text-decoration:none}h2{margin:12px 0 6px;font-size:16px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0}.tabs button.on{background:#16a34a;color:#fff;border-color:#16a34a}
+input,select,button,textarea{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid #cbd5e1;max-width:100%}input,select{width:100%;margin:3px 0}button{cursor:pointer;background:#fff}
+.g{background:#16a34a;color:#fff;border-color:#16a34a}.r{background:#dc2626;color:#fff;border-color:#dc2626}.box{background:#fff;border:1px solid #d1e7d8;border-radius:10px;padding:12px;margin:8px 0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>.f{flex:1;min-width:120px}.sm{font-size:12px;color:#64748b}.info{background:#fff;border:1px solid #16a34a;border-radius:8px;padding:8px 12px}
+.n{width:84px;flex:none}.ok{color:#16a34a;font-size:12px;min-width:40px}table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid #e2e8f0;padding:4px;text-align:left;vertical-align:middle}td input{margin:0}.sc{overflow-x:auto}</style></head><body>
+<div id="app"><div class="bar"><a href="/">← Portal</a><b>Madrasah</b><span><span class="sm">{{nama}}</span> <button @click="keluar">Keluar</button></span></div>
+ <p class="info" v-if="info">{{info}}</p><div class="tabs"><button v-for="t in tabs" :key="t[0]" :class="{on:tab===t[0]}" @click="buka(t[0])">{{t[1]}}</button></div>
+ <div class="box row"><select class="f" v-model="semester" @change="segarkan"><option>Ganjil</option><option>Genap</option></select><input class="f" v-model="tahun" placeholder="Tahun ajaran, mis. 2026/2027" @change="segarkan"></div>
+
+ <section v-if="tab==='harian'"><select v-model="km" @change="muatHarian"><option value="">Pilih kelas dan mapel yang Anda ampu</option><option v-for="x in daftar" :key="x.kelas+x.mapel" :value="x.kelas+'|'+x.mapel">{{x.kelas}} · {{x.mapel}}</option></select>
+  <p class="sm" v-if="!daftar.length">Belum ada kelas atau mapel yang Anda ampu. Minta admin mengaturnya di tab Pengampu.</p>
+  <div class="box sc" v-if="rows.length"><table><tr><th>Nama</th><th>Nilai harian</th><th>Imtihan</th></tr><tr v-for="r in rows" :key="r.nis"><td>{{r.nama}}</td><td class="row"><input class="n" type="number" min="0" max="100" v-model="r.harian" @change="simpanHarian(r)"><span class="ok">{{ok1[r.nis]}}</span></td><td class="sm">{{r.ujian===null?'-':r.ujian}}</td></tr></table>
+   <p class="sm">Nilai imtihan diisi otomatis dari modul Ujian setelah disetujui panitia. Kosongkan kolom untuk menghapus nilai.</p></div></section>
+
+ <section v-if="tab==='pengampu'"><div class="box"><b>Tambah pengampu</b><select v-model="fp.user"><option value="">Pilih guru</option><option v-for="u in opsi.pengguna" :key="u.username" :value="u.username">{{u.nama}} ({{u.username}})</option></select>
+   <select v-model="fp.km"><option value="">Pilih kelas dan mapel</option><option v-for="x in opsi.kelasMapel" :key="x.kelas+x.mapel" :value="x.kelas+'|'+x.mapel">{{x.kelas}} · {{x.mapel}}</option></select><button class="g" @click="tambahPg">Tambahkan</button>
+   <p class="sm" v-if="!opsi.kelasMapel.length">Daftar mapel belum ada. Isi dulu di tab Data Raport.</p></div>
+  <div class="box sc"><table><tr><th>Guru</th><th>Kelas</th><th>Mapel</th><th></th></tr><tr v-for="p in pg" :key="p.username+p.kelas+p.mapel"><td>{{p.nama}}</td><td>{{p.kelas}}</td><td>{{p.mapel}}</td><td><button class="r" @click="hapusPg(p)">Lepas</button></td></tr></table></div></section>
+
+ <section v-if="tab==='raport'"><select v-model="kelas" @change="muatKelas"><option value="">Pilih kelas</option><option v-for="k in kelasList" :key="k.kelas" :value="k.kelas">{{k.kelas}} · {{k.santri}} santri · {{k.mapel}} mapel {{k.adaData?'':'· data kelas belum diisi'}}</option></select>
+  <template v-if="dk">
+   <div class="box"><h2>Data kelas untuk raport</h2><input v-model="dk.kelas.fasl" placeholder="Nama kelas dalam bahasa Arab (الفصل)"><input v-model="dk.kelas.wali_fasl" placeholder="Wali kelas"><input v-model="dk.kelas.mudir" placeholder="Mudir ma'had"><input v-model="dk.kelas.tempat" placeholder="Tempat penyerahan"><input v-model="dk.kelas.tanggal" placeholder="Tanggal penyerahan, mis. 1 Januari 2027"><button class="g" @click="simpanKelas">Simpan data kelas</button></div>
+   <div class="box sc"><h2>Mapel dan kitab</h2><table><tr><th>Mapel</th><th>Kitab (Arab)</th><th>KKM</th><th>Urut</th><th></th></tr>
+    <tr v-for="m in dk.mapel" :key="m.mapel"><td><b>{{m.mapel}}</b></td><td><input v-model="m.kitab" dir="auto"></td><td><input class="n" type="number" v-model="m.kkm"></td><td><input class="n" type="number" v-model="m.urut"></td><td class="row"><button @click="simpanMapel(m)">Simpan</button><button class="r" @click="hapusMapel(m)">Hapus</button></td></tr>
+    <tr><td><input v-model="nm.mapel" placeholder="Mapel baru"></td><td><input v-model="nm.kitab" dir="auto" placeholder="Judul kitab"></td><td><input class="n" type="number" v-model="nm.kkm" placeholder="65"></td><td><input class="n" type="number" v-model="nm.urut"></td><td><button class="g" @click="tambahMapel">Tambah</button></td></tr></table></div>
+   <div class="box sc"><h2>Sikap, absensi, wasiat ({{semester}} {{tahun}})</h2><table><tr><th>Nama</th><th>Akhlak</th><th>Istiqamah</th><th>Ubudiyah</th><th>Sakit</th><th>Izin</th><th>Alfa</th><th>Wasiat wali</th><th>Naik kelas</th><th></th></tr>
+    <tr v-for="s in sikap" :key="s.nis"><td>{{s.nama}}</td><td><input class="n" type="number" v-model="s.akhlak"></td><td><input class="n" type="number" v-model="s.istiqamah"></td><td><input class="n" type="number" v-model="s.ubudiyah"></td><td><input class="n" type="number" v-model="s.sakit"></td><td><input class="n" type="number" v-model="s.izin"></td><td><input class="n" type="number" v-model="s.alfa"></td><td><input v-model="s.wasiat"></td><td><input v-model="s.naik" dir="auto" placeholder="hanya semester Genap"></td><td><button @click="simpanSikap(s)">Simpan</button></td></tr></table>
+    <p class="sm">Absensi yang dikosongkan dihitung otomatis dari data absensi. Isi angka untuk menimpanya.</p></div></template></section>
+</div>
+<script>
+const {createApp,ref,reactive,computed}=Vue;let TK='';
+async function rpc(fn,...a){const r=await fetch('/api/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn,args:[TK,...a]})});const j=await r.json().catch(()=>({error:'Respons server tidak valid'}));if(!r.ok||j.error){if(/Sesi habis/.test(j.error||'')){sessionStorage.removeItem('maarif');location.href='/'}throw new Error(j.error||'HTTP '+r.status)}return j.result}
+createApp({setup(){
+ let sv=null;try{sv=JSON.parse(sessionStorage.getItem('maarif')||'null')}catch(e){}if(!sv){location.href='/'}else TK=sv.token;
+ const nama=ref(sv?sv.nama:''),izin=ref([]),tab=ref(''),info=ref(''),ada=k=>izin.value.includes(k);let _t;const ok=m=>{info.value=m;clearTimeout(_t);_t=setTimeout(()=>info.value='',4000)},err=e=>ok('⚠ '+(e.message||e));
+ const d=new Date(),th=d.getMonth()>=6?d.getFullYear()+'/'+(d.getFullYear()+1):(d.getFullYear()-1)+'/'+d.getFullYear(),semester=ref(d.getMonth()>=6?'Ganjil':'Genap'),tahun=ref(th);
+ const tabs=computed(()=>[(ada('madrasah.nilai.harian')||ada('madrasah.nilai.semua'))&&['harian','Nilai harian'],ada('madrasah.pengampu.kelola')&&['pengampu','Pengampu'],ada('madrasah.raport.kelola')&&['raport','Data raport']].filter(Boolean));
+ const daftar=ref([]),km=ref(''),rows=ref([]),ok1=reactive({});
+ async function muatHarian(){rows.value=[];if(!km.value)return;const[k,m]=km.value.split('|');try{rows.value=(await rpc('nhList',k,m,semester.value,tahun.value)).map(r=>({...r,harian:r.harian===null?'':r.harian}))}catch(e){err(e)}}
+ async function simpanHarian(r){const[k,m]=km.value.split('|');try{const v=await rpc('nhSimpan',k,m,semester.value,tahun.value,r.nis,r.harian);r.harian=v===null?'':v;ok1[r.nis]='✓'}catch(e){ok1[r.nis]='';err(e)}}
+ const pg=ref([]),opsi=reactive({kelasMapel:[],pengguna:[]}),fp=reactive({user:'',km:''});
+ async function muatPg(){try{pg.value=await rpc('pgList');Object.assign(opsi,await rpc('pgOpsi'))}catch(e){err(e)}}
+ async function tambahPg(){const[k,m]=fp.km.split('|');try{await rpc('pgSimpan',fp.user,k,m);ok('Pengampu ditambahkan.');muatPg()}catch(e){err(e)}}
+ async function hapusPg(p){try{await rpc('pgHapus',p.username,p.kelas,p.mapel);muatPg()}catch(e){err(e)}}
+ const kelasList=ref([]),kelas=ref(''),dk=ref(null),sikap=ref([]),nm=reactive({mapel:'',kitab:'',kkm:'',urut:''});
+ async function muatRaport(){try{kelasList.value=await rpc('drKelasList')}catch(e){err(e)}}
+ async function muatKelas(){dk.value=null;sikap.value=[];if(!kelas.value)return;try{dk.value=await rpc('drKelas',kelas.value);await muatSikap()}catch(e){err(e)}}
+ async function muatSikap(){if(!kelas.value)return;try{sikap.value=(await rpc('drSikapList',kelas.value,semester.value,tahun.value)).map(s=>{const o={...s};for(const k in o)if(o[k]===null)o[k]='';return o})}catch(e){err(e)}}
+ async function simpanKelas(){try{await rpc('drSimpanKelas',{...dk.value.kelas,kelas:kelas.value});ok('Data kelas disimpan.');muatRaport()}catch(e){err(e)}}
+ async function simpanMapel(m){try{await rpc('drSimpanMapel',{...m,kelas:kelas.value});ok('Mapel '+m.mapel+' disimpan.')}catch(e){err(e)}}
+ async function tambahMapel(){try{await rpc('drSimpanMapel',{...nm,kelas:kelas.value});Object.assign(nm,{mapel:'',kitab:'',kkm:'',urut:''});ok('Mapel ditambahkan.');muatKelas();muatRaport()}catch(e){err(e)}}
+ async function hapusMapel(m){if(!confirm('Hapus mapel '+m.mapel+'?'))return;try{await rpc('drHapusMapel',kelas.value,m.mapel);muatKelas();muatRaport()}catch(e){err(e)}}
+ async function simpanSikap(s){try{await rpc('drSimpanSikap',{...s,semester:semester.value,tahun:tahun.value});ok('Data '+s.nama+' disimpan.')}catch(e){err(e)}}
+ function segarkan(){if(tab.value==='harian')muatHarian();if(tab.value==='raport')muatSikap()}
+ async function buka(t){tab.value=t;if(t==='harian'){try{daftar.value=await rpc('nhDaftar')}catch(e){err(e)}}if(t==='pengampu')muatPg();if(t==='raport')muatRaport()}
+ function keluar(){sessionStorage.removeItem('maarif');location.href='/'}
+ (async()=>{if(!sv)return;try{izin.value=(await rpc('sayaIzin')).izin;if(tabs.value.length)buka(tabs.value[0][0]);else ok('Anda tidak memiliki izin pada modul Madrasah.')}catch(e){err(e)}})();
+ return{nama,tab,tabs,info,semester,tahun,daftar,km,rows,ok1,muatHarian,simpanHarian,pg,opsi,fp,tambahPg,hapusPg,kelasList,kelas,dk,sikap,nm,muatKelas,simpanKelas,simpanMapel,tambahMapel,hapusMapel,simpanSikap,segarkan,buka,keluar}}}).mount('#app');
+</script></body></html>
